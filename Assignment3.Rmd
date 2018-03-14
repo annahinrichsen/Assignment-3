@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(rethinking);library(ggplot2);library(rstan)
+library(rethinking);library(ggplot2);library(rstan);library(rstanarm);library(bayesplot)
 
 data = read.csv("Assignment3Data.csv")
 #NAs for alot of ADOS scores - they were only collected at first visit
@@ -40,18 +40,27 @@ The questions you will have to answer are:
 
 
 ```{r}
-#make subset with only visit 1 and asd children
-data2 = subset(data,Visit == "1" & ASD == "1")
+#centering
+d <- read.csv("Assignment3Data.csv")
+d_visit1 <- d[d$Visit == 1,]
+d_visit1_ASD <- d_visit1[d_visit1$ASD == 1,]
+d_visit1_ASD$ADOS_c <- d_visit1_ASD$ADOS - mean(d_visit1_ASD$ADOS) 
+d_visit1_ASD$NonVerbalIQ_c <- d_visit1_ASD$NonVerbalIQ - mean(d_visit1_ASD$NonVerbalIQ)
+d_visit1_ASD$VerbalIQ_c <- d_visit1_ASD$VerbalIQ - mean(d_visit1_ASD$VerbalIQ)
+d_visit1_ASD$SocialIQ_c <- d_visit1_ASD$SocialIQ - mean(d_visit1_ASD$SocialIQ)
+
+
+#models
 
 model1 <- map(
   alist(
-    ADOS ~ dnorm( mu , sigma ) ,
-    mu <- a + b*VerbalIQ ,
+    ADOS_c ~ dnorm( mu , sigma ) ,
+    mu <- a + b*VerbalIQ_c ,
     a ~ dnorm( 20 , 20 ) ,
     b ~ dnorm( 0 , 10 ) ,
     sigma ~ dunif( 0 , 10 )
     ) ,
-  data=data2 )
+  data=d_visit1_ASD )
 
 precis(model1)
 
@@ -97,13 +106,13 @@ ggplot(data=data2, aes(VerbalIQ, ADOS)) + geom_point() + geom_smooth(method = "l
 
 model2 <- map(
   alist(
-    ADOS ~ dnorm( mu , sigma ) ,
-    mu <- a + b*NonVerbalIQ ,
+    ADOS_c ~ dnorm( mu , sigma ) ,
+    mu <- a + b*NonVerbalIQ_c ,
     a ~ dnorm( 20 , 20 ) ,
     b ~ dnorm( 0 , 10 ) ,
     sigma ~ dunif( 0 , 10 )
     ) ,
-  data=data2 )
+  data=d_visit1_ASD )
 
 dfmodel2 = (precis(model2))
 dfmodel2
@@ -113,17 +122,47 @@ dfmodel2
 
 model3 <- map(
   alist(
-    ADOS ~ dnorm( mu , sigma ) ,
-    mu <- a + b*SocialIQ ,
+    ADOS_c ~ dnorm( mu , sigma ) ,
+    mu <- a + b*SocialIQ_c ,
     a ~ dnorm( 20 , 20 ) ,
     b ~ dnorm( 0 , 10 ) ,
     sigma ~ dunif( 0 , 10 )
     ) ,
-  data=data2 )
+  data=d_visit1_ASD )
 
 precis(model3)
 
 
+
+
+```
+plots
+
+```{r}
+
+
+#Predictive posterior check on raw data - for verbal IQ predicting ADOS
+
+sim.ADOS.verbal = sim(model1, data = d_visit1_ASD)
+
+#poterior predictive plot on top of raw data
+dens(sim.ADOS.verbal, col = "red", xlim = c(-15, 15), ylim = c(0,0.12),  xlab = "ADOS")
+par(new=TRUE)
+dens(d_visit1_ASD$ADOS_c, xlim = c(-15, 15), ylim = c(0,0.12), xlab = "ADOS")
+
+#using baysianplot
+pp_check(d_visit1_ASD$ADOS_c, sim.ADOS.verbal, ppc_dens_overlay)
+#or - ppc_dens_overlay(d_visit1_ASD$ADOS_c, sim.ADOS)
+
+#ppc for non verbal
+sim.ADOS.nonverbal = sim(model2, data = d_visit1_ASD, n= 100)
+
+#using bayesplot
+pp_check(d_visit1_ASD$ADOS_c, sim.ADOS.nonverbal, ppc_dens_overlay)
+#dens plot on raw
+dens(sim.ADOS.nonverbal, col = "red", xlim = c(-15, 15), ylim = c(0,0.12),  xlab = "ADOS")
+par(new=TRUE)
+dens(d_visit1_ASD$ADOS_c, xlim = c(-15, 15), ylim = c(0,0.12), xlab = "ADOS")
 
 
 ```
@@ -136,13 +175,10 @@ precis(model3)
 
 ```{r}
 
-d <- read.csv("Assignment3Data.csv")
-d_visit1 <- d[d$Visit == 1,]
-d_visit1_ASD <- d_visit1[d_visit1$ASD == 1,]
-d_visit1_ASD$ADOS_c <- d_visit1_ASD$ADOS - mean(d_visit1_ASD$ADOS) 
-d_visit1_ASD$NonVerbalIQ_c <- d_visit1_ASD$NonVerbalIQ - mean(d_visit1_ASD$NonVerbalIQ)
-d_visit1_ASD$VerbalIQ_c <- d_visit1_ASD$VerbalIQ - mean(d_visit1_ASD$VerbalIQ)
-d_visit1_ASD$SocialIQ_c <- d_visit1_ASD$SocialIQ - mean(d_visit1_ASD$SocialIQ)
+
+#standarizing
+#d_visit1_ASD$ADOS_scaled = scale(d_visit1_ASD$ADOS[,])
+
 
 #Does it make sense to have them all in the same model? 
 
