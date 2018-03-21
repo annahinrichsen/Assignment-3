@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(rethinking);library(ggplot2);library(rstan);library(rstanarm);library(bayesplot)
+library(rethinking);library(ggplot2);library(rstan);library(rstanarm);library(bayesplot);library(gridExtra)
 
 data = read.csv("Assignment3Data.csv")
 #NAs for alot of ADOS scores - they were only collected at first visit
@@ -66,40 +66,40 @@ precis(model1)
 
 
 #plotting
-plot( ADOS ~ VerbalIQ , data2 , col=col.alpha(rangi2,0.5) ) 
+plot( ADOS ~ VerbalIQ , d_visit1_ASD , col=col.alpha(rangi2,0.5) ) 
 
 mu = link(model1)
 
 # define sequence of verbalIQ to compute predictions 
 # these values will be on the horizontal axis
-Verbal.seq <- seq( from=5 , to=50 , by=1 )
+#Verbal.seq <- seq( from=5 , to=50 , by=1 )
 # use link to compute mu
 # for each sample from posterior
 # and for each weight in weight.seq
-mu <- link( model1 , data=data.frame(VerbalIQ=Verbal.seq) )
-str(mu)
+#mu <- link( model1 , data=data.frame(VerbalIQ_c=Verbal.seq) )
+#str(mu)
 
 # use type="n" to hide raw data
-plot( ADOS ~ VerbalIQ , data2 , type="n" )
+#plot( ADOS ~ VerbalIQ , data2 , type="n" )
 # loop over samples and plot each mu value
-for ( i in 1:100 )
-  points( Verbal.seq , mu[i,] , pch=16 , col=col.alpha(rangi2,0.1) )
+#for ( i in 1:100 )
+ # points( Verbal.seq , mu[i,] , pch=16 , col=col.alpha(rangi2,0.1) )
 
 # summarize the distribution of mu
-mu.mean <- apply( mu , 2 , mean )#compute the mean of each coloumn of the matrix mu
-mu.HPDI <- apply( mu , 2 , HPDI , prob=0.89 ) 
+#mu.mean <- apply( mu , 2 , mean )#compute the mean of each coloumn of the matrix mu
+#mu.HPDI <- apply( mu , 2 , HPDI , prob=0.89 ) 
 
 # plot raw data
 # fading out points to make line and interval more visible
-plot( ADOS ~ VerbalIQ , data=data2 , col=col.alpha(rangi2,0.5) )
+#plot( ADOS ~ VerbalIQ , data=data2 , col=col.alpha(rangi2,0.5) )
 # plot the MAP line, aka the mean mu for each weight
-lines( Verbal.seq , mu.mean )
+#lines( Verbal.seq , mu.mean )
 # plot a shaded region for 89% HPDI
-shade( mu.HPDI , Verbal.seq )
+#shade( mu.HPDI , Verbal.seq )
 
 
 #Or
-ggplot(data=data2, aes(VerbalIQ, ADOS)) + geom_point() + geom_smooth(method = "lm")
+ggplot(data=d_visit1_ASD, aes(VerbalIQ, ADOS)) + geom_point() + geom_smooth(method = "lm")
 
 #__________________________
 #non-verbal IQ
@@ -114,8 +114,8 @@ model2 <- map(
     ) ,
   data=d_visit1_ASD )
 
-dfmodel2 = (precis(model2))
-dfmodel2
+precis(model2)
+
 
 #__________________________
 #social iQ
@@ -141,14 +141,16 @@ plots
 ```{r}
 
 
-#Predictive posterior check on raw data - for verbal IQ predicting ADOS
+#Predictive posterior check on raw data 
+#for verbal IQ predicting ADOS
 
-sim.ADOS.verbal = sim(model1, data = d_visit1_ASD)
+sim.ADOS.verbal = sim(model1, data = d_visit1_ASD, n = 100)
 
 #poterior predictive plot on top of raw data
 dens(sim.ADOS.verbal, col = "red", xlim = c(-15, 15), ylim = c(0,0.12),  xlab = "ADOS")
 par(new=TRUE)
 dens(d_visit1_ASD$ADOS_c, xlim = c(-15, 15), ylim = c(0,0.12), xlab = "ADOS")
+title("verbal")
 
 #using baysianplot
 pp_check(d_visit1_ASD$ADOS_c, sim.ADOS.verbal, ppc_dens_overlay)
@@ -157,34 +159,47 @@ pp_check(d_visit1_ASD$ADOS_c, sim.ADOS.verbal, ppc_dens_overlay)
 #ppc for non verbal
 sim.ADOS.nonverbal = sim(model2, data = d_visit1_ASD, n= 100)
 
-#using bayesplot
-pp_check(d_visit1_ASD$ADOS_c, sim.ADOS.nonverbal, ppc_dens_overlay)
 #dens plot on raw
 dens(sim.ADOS.nonverbal, col = "red", xlim = c(-15, 15), ylim = c(0,0.12),  xlab = "ADOS")
 par(new=TRUE)
 dens(d_visit1_ASD$ADOS_c, xlim = c(-15, 15), ylim = c(0,0.12), xlab = "ADOS")
+title("Non-verbal")
 
+#using bayesplot
+pp_check(d_visit1_ASD$ADOS_c, sim.ADOS.nonverbal, ppc_dens_overlay)
+
+
+#ppc for non social
+sim.ADOS.social = sim(model3, data = d_visit1_ASD, n= 100)
+
+
+#dens plot on raw data
+dens(sim.ADOS.social, col = "red", xlim = c(-15, 15), ylim = c(0,0.12),  xlab = "ADOS")
+par(new=TRUE)
+dens(d_visit1_ASD$ADOS_c, xlim = c(-15, 15), ylim = c(0,0.12), xlab = "ADOS")
+title("Social")
+
+#using bayesplot
+pp_check(d_visit1_ASD$ADOS_c, sim.ADOS.social, ppc_dens_overlay)
 
 ```
 
 
 2. Do the different aspects of IQ account for different portions of the variance in ADOS? 
+
+
 2.1. Does it make sense to have all IQ measures in the same model? First write a few lines answering the question and motivating your answer, including a discussion as to what happens when you put all of them in the same model. Then build a model following your answer. If your answer is "no", you are not free, you still have to answer: are there alternative ways of answering the question?
-2.2. Build the model, assess its quality, write a few lines interpreting the results.
 
 
 ```{r}
 
 
-#standarizing
-#d_visit1_ASD$ADOS_scaled = scale(d_visit1_ASD$ADOS[,])
-
 
 #Does it make sense to have them all in the same model? 
 
-cor(data2$VerbalIQ, data2$NonVerbalIQ)
-cor(data2$VerbalIQ, data2$SocialIQ)
-cor(data2$NonVerbalIQ, data2$SocialIQ)
+cor(d_visit1_ASD$VerbalIQ, d_visit1_ASD$NonVerbalIQ)
+cor(d_visit1_ASD$VerbalIQ, d_visit1_ASD$SocialIQ)
+cor(d_visit1_ASD$NonVerbalIQ, d_visit1_ASD$SocialIQ)
 
 modelmulti <- map( 
              alist(
@@ -232,11 +247,36 @@ plot(precis(verbal_soc_model))
 precis(verbal_soc_model)
 
 ```
-plots for exercise 2
+
+
+2.2. Build the model, assess its quality, write a few lines interpreting the results.
 
 ```{r}
-#plotting
 
+#the model chosen
+
+nonverbal_soc_model <- map( 
+             alist(
+               ADOS_c ~ dnorm( mu , sigma ) ,
+               mu <- a  + bn*NonVerbalIQ_c + bs*SocialIQ_c ,
+               a ~ dnorm( 20 , 20 ) ,
+               bn ~ dnorm( 0 , 10 ) ,
+               bs ~ dnorm( 0, 10), 
+               sigma ~ dunif( 0 , 30 )
+               ) ,
+             data = d_visit1_ASD )
+
+precis(nonverbal_soc_model)
+
+#ppc
+
+#simulate from mode
+sim.ADOS.nonverbal_social = sim(nonverbal_soc_model, data = d_visit1_ASD, n= 100)
+
+dens(sim.ADOS.nonverbal_social, col = "red", xlim = c(-15, 15), ylim = c(0,0.12),  xlab = "ADOS")
+par(new=TRUE)
+dens(d_visit1_ASD$ADOS_c, xlim = c(-15, 15), ylim = c(0,0.12), xlab = "ADOS")
+title("Non-verbal and Social")
 
 
 
@@ -245,9 +285,51 @@ plots for exercise 2
 
 3. Let's now include also the TD children. Does it make sense to ask whether IQ and ADOS are related? Motivate your answer. In any case, if you wanted to build a model to answer that question, which model would you build? Run the model, assess its quality, write a few lines interpreting the results.
 
+
+```{r}
+#Does it make sense to ask whether IQ and ADOS are related?
+d_visit1 = na.omit(d_visit1)
+
+d_TD = d_visit1[d_visit1$ASD == 0,]
+
+asd_plot = ggplot(d_visit1_ASD, aes(VerbalIQ, ADOS)) + geom_point() + geom_smooth(method = "lm") + labs(title = "ASD-children")
+tdasd_plot = ggplot(d_visit1, aes(VerbalIQ, ADOS)) + geom_point(aes(colour = ASD)) + geom_smooth(method = "lm") + labs(title = "ASD and TD-children")
+td_plot = ggplot(d_TD, aes(VerbalIQ, ADOS)) + geom_point() + geom_smooth(method = "lm") + labs(title= "TD-children")
+
+grid.arrange(asd_plot, td_plot, tdasd_plot)
+
+plot(ADOS ~ VerbalIQ, data = d_visit1_ASD)
+plot(ADOS ~ VerbalIQ, data = d_visit1)
+
+
+asd_plot
+td_plot
+tdasd_plot
+
+?dens
+
+```
+
+
 4. Let's discuss contents:
 4.1. You have three scores for IQ, do they show shared variance? Is that the same in TD and ASD? What does that tell us about IQ?
 4.2. You have explored the relation between IQ and ADOS. How do you explain that relation from a cognitive perspective? N.B. You can present alternative hypotheses. #own notes: does symptoms severity drive IQ? or the other way?? - fun to discuss
+
+
+```{r}
+
+cor(d_visit1_ASD$VerbalIQ, d_visit1_ASD$NonVerbalIQ)
+cor(d_visit1_ASD$VerbalIQ, d_visit1_ASD$SocialIQ)
+cor(d_visit1_ASD$NonVerbalIQ, d_visit1_ASD$SocialIQ)
+
+cor(d_TD$VerbalIQ, d_TD$NonVerbalIQ) #0.56
+cor(d_TD$VerbalIQ, d_TD$SocialIQ) #0.17
+cor(d_TD$NonVerbalIQ, d_TD$SocialIQ) #-0.12 
+
+
+```
+
+
 
 5. Bonus questions: Including measurement errors. 
 5.1. Let's assume that ADOS has a measurement error of 1. How would you model that in any of the previous models? 
